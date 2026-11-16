@@ -272,7 +272,7 @@ function step4(l,g){ /* result: Earth vs Moon sizes */
 }
 function step5(l,g){ /* bonus: distance */
   if(l<8.2){ renderer.render(sz,szCam); nightSky2D(g);
-    const a=smooth(seg(l,0.5,1.2)); const eye={x:230,y:600}, pea={x:860,y:560}, mo={x:1650,y:500}; const rp=20, rm=rp*(mo.x-eye.x)/(pea.x-eye.x);
+    const a=smooth(seg(l,0.5,1.2)); const eye={x:230,y:600}, pea={x:860,y:560}, mo={x:1650,y:0}; const rp=20, rm=rp*(mo.x-eye.x)/(pea.x-eye.x); mo.y=(eye.y-10)+(pea.y-(eye.y-10))/(pea.x-eye.x)*(mo.x-eye.x); /* moon centred on the pea's sight-lines */
     ctx.save(); ctx.globalAlpha=a; ctx.fillStyle='#e9b98f'; ctx.beginPath(); ctx.ellipse(eye.x-40,eye.y+10,70,90,0,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#2a211d'; ctx.beginPath(); ctx.arc(eye.x,eye.y-10,10,0,Math.PI*2); ctx.fill();
     ctx.strokeStyle='#e9b98f'; ctx.lineWidth=34; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(eye.x-20,eye.y+90); ctx.quadraticCurveTo(eye.x+260,eye.y+120,pea.x-20,pea.y+40); ctx.stroke();
     ctx.fillStyle='#e9b98f'; ctx.beginPath(); ctx.ellipse(pea.x-10,pea.y+40,34,26,-0.3,0,Math.PI*2); ctx.fill(); ctx.restore();

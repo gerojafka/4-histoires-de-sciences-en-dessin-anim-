@@ -88,7 +88,7 @@ let voiceOn=true; try{ if(localStorage.getItem('savants_voice')==='0') voiceOn=f
 let capIdx=0, lastIdx=-1, vBusy=false, vStarted=false, vStartBy=0, vEndBy=0, vUtt=null, vFail=0, vTok=0, vCache={fr:null,en:null};
 const VSYM={fr:[[/≈/g,' environ '],[/×/g,' fois '],[/=/g,' égale '],[/\+/g,' plus '],[/−\s?/g,' moins '],[/°/g,' degrés '],[/′/g,' minutes '],[/″/g,' secondes '],[/→/g,', '],[/½/g,' et demi']],
              en:[[/≈/g,' about '],[/×/g,' times '],[/=/g,' equals '],[/\+/g,' plus '],[/−\s?/g,' minus '],[/°/g,' degrees '],[/′/g,' minutes '],[/″/g,' seconds '],[/→/g,', '],[/½/g,' and a half']]};
-const musicVol=()=>(VOICE_OK&&voiceOn)?0.2:0.5;
+const musicVol=()=>(VOICE_OK&&voiceOn)?0.13:0.33;
 function pickVoice(lg){ if(vCache[lg]) return vCache[lg]; const vs=SS.getVoices(); if(!vs||!vs.length) return null; let best=null, bs=-1;
   for(const v of vs){ const lang=(v.lang||'').replace('_','-').toLowerCase(); if(!lang.startsWith(lg)) continue; const n=v.name||''; let s=0;
     if(/google/i.test(n)) s+=100; if(/natural|neural|online/i.test(n)) s+=60; if(/premium|enhanced|am[ée]lior/i.test(n)) s+=40;
@@ -123,7 +123,7 @@ function vSpeak(o,idx){ if(!VOICE_OK||!voiceOn) return; const raw=(o&&o[LANG])||
   VEL.volume=1; VEL.src='assets/voice/'+LANG+'/'+vHash(raw)+'.mp3';
   try{ const p=VEL.play(); if(p&&p.catch) p.catch(()=>{ if(tok===vTok) viaTTS(); }); }catch(e){ viaTTS(); } }
 function vSpeaking(){ if(!vBusy) return false; const n=performance.now(); if(!vStarted&&SS_OK&&vUtt&&SS.speaking) vStarted=true; if(n>vEndBy||(!vStarted&&n>vStartBy)){ if(!vStarted) vFail++; vBusy=false; return false; } return true; }
-const vUsable=()=>VOICE_OK&&voiceOn&&vFail<4;
+const vUsable=()=>VOICE_OK&&voiceOn&&vFail<4&&$('btnSound').dataset.on!=='0';
 function vPause(){ if(vSpeaking()) capIdx=Math.max(0,lastIdx); vStop(); }
 function unlockVoice(){ if(!VOICE_OK) return; try{ VEL.onplaying=VEL.onended=VEL.onerror=VEL.onloadedmetadata=null; VEL.src=SILENT; const p=VEL.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} if(SS_OK){ try{ const u=new SpeechSynthesisUtterance(' '); u.volume=0; SS.speak(u); }catch(e){} } }
 $('btnVoice').onclick=()=>{ voiceOn=!voiceOn; vFail=0; try{ localStorage.setItem('savants_voice',voiceOn?'1':'0'); }catch(e){}
@@ -163,7 +163,7 @@ $('btnHome').onclick=goHome; $('sideL').onclick=()=>go(cur-1); $('sideR').onclic
 $('btnPlay').onclick=()=>{ if(!S) return; if(lt>=S.steps[cur].dur){ next(); return; } playing=!playing; if(!playing) vPause(); refreshUI(); };
 $('btnMode').onclick=()=>{ mode=mode==='step'?'auto':'step'; if(mode==='auto') setPulse(false); else if(S&&lt>=S.steps[cur].dur&&cur<S.steps.length-1) setPulse(true); refreshUI(); };
 $('btnSpeed').onclick=()=>{ speed=speed===1?0.75:speed===0.75?0.5:1; refreshUI(); };
-$('btnSound').onclick=()=>{ const on=$('btnSound').dataset.on!=='0'; $('btnSound').dataset.on=on?'0':'1'; const m=music(); if(m){ m.muted=on; if(!on&&m.paused){ const p=m.play(); if(p&&p.catch) p.catch(()=>{}); } } refreshUI(); };
+$('btnSound').onclick=()=>{ const on=$('btnSound').dataset.on!=='0'; $('btnSound').dataset.on=on?'0':'1'; if(on) vStop(); const m=music(); if(m){ m.muted=on; if(!on&&m.paused){ const p=m.play(); if(p&&p.catch) p.catch(()=>{}); } } refreshUI(); };
 addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('moreBox').hidden){ $('moreBox').hidden=true; return; } if(!S) return; if(e.key==='ArrowRight'){ if(cur<S.steps.length-1) next(); } else if(e.key==='ArrowLeft') go(cur-1); else if(e.key===' '){ e.preventDefault(); $('btnPlay').click(); } else if(e.key==='Escape') goHome(); });
 addEventListener('resize',()=>{ layout(); if(!$('home').classList.contains('hide')) drawSky(); });
 function loop(now){ const dt=Math.min(0.1,(now-last)/1000); last=now; gclock+=dt;
