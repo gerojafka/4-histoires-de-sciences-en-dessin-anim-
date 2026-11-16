@@ -2758,7 +2758,7 @@ let voiceOn=true; try{ if(localStorage.getItem('savants_voice')==='0') voiceOn=f
 let capIdx=0, lastIdx=-1, vBusy=false, vStarted=false, vStartBy=0, vEndBy=0, vUtt=null, vFail=0, vTok=0, vCache={fr:null,en:null};
 const VSYM={fr:[[/≈/g,' environ '],[/×/g,' fois '],[/=/g,' égale '],[/\+/g,' plus '],[/−\s?/g,' moins '],[/°/g,' degrés '],[/′/g,' minutes '],[/″/g,' secondes '],[/→/g,', '],[/½/g,' et demi']],
              en:[[/≈/g,' about '],[/×/g,' times '],[/=/g,' equals '],[/\+/g,' plus '],[/−\s?/g,' minus '],[/°/g,' degrees '],[/′/g,' minutes '],[/″/g,' seconds '],[/→/g,', '],[/½/g,' and a half']]};
-let sndHalf=false; const musicVol=()=>((VOICE_OK&&voiceOn)?0.0867:0.22)*(sndHalf?0.5:1);
+let sndHalf=false; const musicVol=()=>((VOICE_OK&&voiceOn)?0.04:0.20)*(sndHalf?0.25:0.5);
 /* iOS ignores audio.volume, so each music element is routed through a Web Audio gain node when possible */
 function setMV(m){ if(!m) return; const v=$('btnSound').dataset.on==='0'?0:musicVol(); /* muted = gain 0 (iOS ignores audio.muted once the element is routed through Web Audio) */ if(m._g){ m.volume=1; try{ m._g.gain.value=v; }catch(e){} } else m.volume=v; }
 function routeMusic(m){ if(!m||m._g||m._noroute||!actx) return; try{ const src=actx.createMediaElementSource(m), g=actx.createGain(); src.connect(g); g.connect(actx.destination); m._g=g; }catch(e){ m._noroute=true; } }
