@@ -19,9 +19,11 @@ Options:
   --lang fr|en|both   which language to generate (default: both)
   --dry-run           only list what would be generated, no download
   --force             regenerate files that already exist
+  --engine cloud|gtts|edge   voice source (default auto: Google Cloud if google_tts_key.txt exists, else gTTS)
+  --voice-fr / --voice-en    pick another voice name (e.g. fr-FR-Neural2-A)
   --pause 1.2         seconds to wait between Google requests (default 1.2)
 """
-import argparse, pathlib, re, sys, time
+import argparse, base64, json, os, pathlib, re, sys, time, urllib.request, urllib.error
 
 try:                                   # never crash on a Windows console that can't print accents
     sys.stdout.reconfigure(errors="replace")
@@ -34,6 +36,11 @@ OUT = HERE / "assets" / "voice"
 
 # Google voice settings. 'tld' picks the regional accent of Google Translate:
 #   French: "fr" (France), "ca" (Canada)      English: "com" (US), "co.uk" (UK), "com.au" (Australia)
+# Better quality: Google Cloud Text-to-Speech (needs a free API key, see google_tts_key.txt below).
+#   "Chirp3-HD" = Google's newest, most natural voices. Other choices: fr-FR-Neural2-A/B, en-US-Neural2-F/J, en-US-Studio-O
+CLOUD_VOICES = {"fr": ("fr-FR", "fr-FR-Chirp3-HD-Aoede"), "en": ("en-US", "en-US-Chirp3-HD-Aoede")}
+EDGE_VOICES = {"fr": "fr-FR-DeniseNeural", "en": "en-US-AriaNeural"}   # free Microsoft neural voices, no key needed
+
 VOICES = {
     "fr": {"lang": "fr", "tld": "fr"},
     "en": {"lang": "en", "tld": "com"},
@@ -90,12 +97,45 @@ def captions():
     return found
 
 
+def api_key():
+    k = os.environ.get("GOOGLE_TTS_KEY", "").strip()
+    f = HERE / "google_tts_key.txt"
+    if not k and f.exists():
+        k = f.read_text(encoding="utf-8").strip()
+    return k
+
+
+def synth_cloud(text, lg, path, key, voice):
+    code, name = CLOUD_VOICES[lg]
+    if voice:
+        name = voice
+        code = "-".join(name.split("-")[:2])
+    body = json.dumps({"input": {"text": text}, "voice": {"languageCode": code, "name": name},
+                       "audioConfig": {"audioEncoding": "MP3", "speakingRate": 0.97}}).encode()
+    req = urllib.request.Request("https://texttospeech.googleapis.com/v1/text:synthesize?key=" + key, body,
+                                 {"Content-Type": "application/json"})
+    try:
+        data = json.load(urllib.request.urlopen(req, timeout=60))
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(e.read().decode("utf-8", "replace")[:300])
+    path.write_bytes(base64.b64decode(data["audioContent"]))
+
+
+def synth_edge(text, lg, path, voice):
+    import asyncio, edge_tts
+    asyncio.run(edge_tts.Communicate(text, voice or EDGE_VOICES[lg]).save(str(path)))
+
+
 def main():
     ap = argparse.ArgumentParser(description="Generate the voice-over MP3 files with Google's voice.")
     ap.add_argument("--lang", choices=["fr", "en", "both"], default="both")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--pause", type=float, default=1.2)
+    ap.add_argument("--engine", choices=["auto", "cloud", "gtts", "edge"], default="auto",
+                    help="cloud = Google Cloud TTS (best, needs key); gtts = Google Translate voice; edge = Microsoft neural voices; auto = cloud if a key is found, else gtts")
+    ap.add_argument("--voice-fr", default=None, help="e.g. fr-FR-Neural2-A")
+    ap.add_argument("--voice-en", default=None, help="e.g. en-US-Studio-O")
     a = ap.parse_args()
 
     caps = captions()
@@ -118,10 +158,22 @@ def main():
     if not todo:
         print("Nothing to do."); return
 
-    try:
-        from gtts import gTTS
-    except ImportError:
-        sys.exit("The gTTS package is missing. Install it with:   py -m pip install gTTS")
+    key = api_key()
+    engine = a.engine if a.engine != "auto" else ("cloud" if key else "gtts")
+    print("Voice engine:", engine)
+    if engine == "cloud" and not key:
+        sys.exit("No Google API key. Put it in a file named google_tts_key.txt next to this script (see the instructions).")
+    if engine == "gtts":
+        try:
+            from gtts import gTTS
+        except ImportError:
+            sys.exit("The gTTS package is missing. Install it with:   py -m pip install gTTS")
+    if engine == "edge":
+        try:
+            import edge_tts
+        except ImportError:
+            sys.exit("Install it with:   py -m pip install edge-tts")
+    vname = {"fr": a.voice_fr, "en": a.voice_en}
 
     failed = []
     for n, (lg, raw, path, fname) in enumerate(todo, 1):
@@ -129,15 +181,22 @@ def main():
         text = spoken(raw, lg)
         for attempt in range(1, 5):
             try:
-                v = VOICES[lg]
-                gTTS(text=text, lang=v["lang"], tld=v["tld"], slow=False).save(str(path))
+                if engine == "cloud":
+                    synth_cloud(text, lg, path, key, vname[lg])
+                elif engine == "edge":
+                    synth_edge(text, lg, path, vname[lg])
+                else:
+                    v = VOICES[lg]
+                    gTTS(text=text, lang=v["lang"], tld=v["tld"], slow=False).save(str(path))
                 print(f"[{n}/{len(todo)}] {lg} {path.name}  {path.stat().st_size // 1024} KB  {text[:55]}")
                 break
             except Exception as e:
                 if path.exists():
                     path.unlink()
                 wait = 5 * attempt
-                print(f"   attempt {attempt} failed ({type(e).__name__}); waiting {wait}s")
+                print(f"   attempt {attempt} failed ({type(e).__name__}: {str(e)[:200]}); waiting {wait}s")
+                if engine == "cloud" and ("API key" in str(e) or "PERMISSION" in str(e) or "not enabled" in str(e)):
+                    sys.exit("Google refused the key: check that 'Cloud Text-to-Speech API' is enabled for it.")
                 time.sleep(wait)
         else:
             failed.append((lg, raw))

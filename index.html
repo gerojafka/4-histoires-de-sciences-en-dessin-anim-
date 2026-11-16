@@ -2677,7 +2677,7 @@ renderer.useLegacyLights=true; renderer.shadowMap.enabled=true; renderer.shadowM
 const env={gl:glc,ui:uic,renderer};
 const inst={}; const story=id=>{ if(!inst[id]) inst[id]=STORIES[id](env); return inst[id]; };
 
-let LANG='fr'; try{ const s=localStorage.getItem('savants_lang'); if(s==='fr'||s==='en') LANG=s; }catch(e){}
+let LANG='en'; try{ const s=localStorage.getItem('savants_lang2'); if(s==='fr'||s==='en') LANG=s; }catch(e){}
 const L=o=>o[LANG];
 
 /* ---------------------------------------------------------------- texts */
@@ -2742,7 +2742,7 @@ function buildHome(){ const H=HOME[LANG]; document.documentElement.lang=LANG; do
 $('btnMore').onclick=()=>{ $('moreBox').hidden=false; $('btnMoreClose').focus(); };
 $('btnMoreClose').onclick=()=>{ $('moreBox').hidden=true; };
 $('moreBox').onclick=e=>{ if(e.target===$('moreBox')) $('moreBox').hidden=true; };
-document.querySelectorAll('.langsw button').forEach(b=>b.onclick=()=>{ LANG=b.dataset.l; try{ localStorage.setItem('savants_lang',LANG); }catch(e){} buildHome(); });
+document.querySelectorAll('.langsw button').forEach(b=>b.onclick=()=>{ LANG=b.dataset.l; try{ localStorage.setItem('savants_lang2',LANG); }catch(e){} buildHome(); });
 
 /* ---------------------------------------------------------------- player */
 let sid=null, S=null, cur=0, lt=0, playing=false, mode='auto', speed=1, holdT=0, gclock=0, last=performance.now();
@@ -2769,11 +2769,17 @@ function vStop(){ if(!VOICE_OK) return; vTok++; try{ VEL.pause(); }catch(e){} if
 function vSpeak(o,idx){ if(!VOICE_OK||!voiceOn) return; const raw=(o&&o[LANG])||''; let t=raw; for(const [re,r] of VSYM[LANG]) t=t.replace(re,r); t=t.replace(/\s+/g,' ').trim(); if(!t) return;
   const tok=++vTok, now=performance.now(); vBusy=true; vStarted=false; vStartBy=now+4000; vEndBy=now+t.length*110+5000; lastIdx=idx; vUtt=null;
   /* fallback: the browser's own voice (a Google voice when the browser has one) */
-  const viaTTS=()=>{ if(tok!==vTok) return; if(!SS_OK){ vBusy=false; return; }
-    const u=new SpeechSynthesisUtterance(t); u.lang=LANG==='fr'?'fr-FR':'en-US'; const v=pickVoice(LANG); if(v){ u.voice=v; u.lang=v.lang||u.lang; } u.rate=0.96; u.pitch=1; u.volume=1;
-    const n2=performance.now(); vStarted=false; vStartBy=n2+2500; vEndBy=n2+t.length*110+4000; vUtt=u;
-    u.onstart=()=>{ if(vUtt===u){ vStarted=true; vFail=0; } }; const done=()=>{ if(vUtt===u) vBusy=false; }; u.onend=done; u.onerror=done;
-    try{ SS.speak(u); }catch(e){ vBusy=false; } };
+  let ttsDone=false;
+  const viaTTS=()=>{ if(tok!==vTok||ttsDone) return; ttsDone=true; if(!SS_OK){ vBusy=false; return; }
+    /* Chrome's network voices cut off after ~15 s: speak short chunks (sentences / clauses) one after the other */
+    const parts=(t.match(/[^.!?;:]+[.!?;:]*\s*/g)||[t]).reduce((a,p)=>{ if(a.length&&(a[a.length-1].length+p.length)<110) a[a.length-1]+=p; else a.push(p); return a; },[]).map(s=>s.trim()).filter(Boolean);
+    const v=pickVoice(LANG); const n2=performance.now(); vStarted=false; vStartBy=n2+3000; vEndBy=n2+t.length*115+6000+parts.length*800; vUtt=null;
+    try{ SS.cancel(); }catch(e){}
+    parts.forEach((pt,k)=>{ const u=new SpeechSynthesisUtterance(pt); u.lang=LANG==='fr'?'fr-FR':'en-US'; if(v){ u.voice=v; u.lang=v.lang||u.lang; } u.rate=0.96; u.pitch=1; u.volume=1;
+      const last=k===parts.length-1; if(last) vUtt=u;
+      u.onstart=()=>{ if(tok===vTok){ vStarted=true; vFail=0; } };
+      const done=()=>{ if(tok===vTok&&last) vBusy=false; }; u.onend=done; u.onerror=done;
+      try{ SS.speak(u); }catch(e){ if(last) vBusy=false; } }); };
   /* preferred: the pre-recorded Google voice file assets/voice/<lang>/<hash>.mp3 (see make_voice.py) */
   VEL.onplaying=()=>{ if(tok===vTok){ vStarted=true; vFail=0; } };
   VEL.onloadedmetadata=()=>{ if(tok===vTok&&isFinite(VEL.duration)) vEndBy=performance.now()+VEL.duration*1000+2500; };
@@ -2781,8 +2787,8 @@ function vSpeak(o,idx){ if(!VOICE_OK||!voiceOn) return; const raw=(o&&o[LANG])||
   VEL.onerror=()=>{ if(tok===vTok){ VEL.onerror=null; viaTTS(); } };
   VEL.volume=1; VEL.src='assets/voice/'+LANG+'/'+vHash(raw)+'.mp3';
   try{ const p=VEL.play(); if(p&&p.catch) p.catch(()=>{ if(tok===vTok) viaTTS(); }); }catch(e){ viaTTS(); } }
-function vSpeaking(){ if(!vBusy) return false; const n=performance.now(); if(n>vEndBy||(!vStarted&&n>vStartBy)){ if(!vStarted) vFail++; vBusy=false; return false; } return true; }
-const vUsable=()=>VOICE_OK&&voiceOn&&vFail<2;
+function vSpeaking(){ if(!vBusy) return false; const n=performance.now(); if(!vStarted&&SS_OK&&vUtt&&SS.speaking) vStarted=true; if(n>vEndBy||(!vStarted&&n>vStartBy)){ if(!vStarted) vFail++; vBusy=false; return false; } return true; }
+const vUsable=()=>VOICE_OK&&voiceOn&&vFail<4;
 function vPause(){ if(vSpeaking()) capIdx=Math.max(0,lastIdx); vStop(); }
 function unlockVoice(){ if(!VOICE_OK) return; try{ VEL.onplaying=VEL.onended=VEL.onerror=VEL.onloadedmetadata=null; VEL.src=SILENT; const p=VEL.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} if(SS_OK){ try{ const u=new SpeechSynthesisUtterance(' '); u.volume=0; SS.speak(u); }catch(e){} } }
 $('btnVoice').onclick=()=>{ voiceOn=!voiceOn; vFail=0; try{ localStorage.setItem('savants_voice',voiceOn?'1':'0'); }catch(e){}
@@ -2807,7 +2813,7 @@ function refreshUI(){ const u=UI[LANG];
   if(S){ $('stepTitle').textContent=`${u.step} ${cur+1}/${S.steps.length} · ${L(S.steps[cur].title)}`;
     document.querySelectorAll('.dot').forEach((d,i)=>{ d.className='dot'+(i<cur?' done':'')+(i===cur?' on':''); d.title=`${u.step} ${i+1} · ${L(S.steps[i].title)}`; }); } }
 function setPulse(on){ $('barR').classList.toggle('pulse',on); $('sideR').classList.toggle('pulse',on); }
-function go(i){ if(!S) return; vStop(); capIdx=0; lastIdx=-1; cur=clamp(i,0,S.steps.length-1); lt=0; holdT=0; playing=true; setPulse(false); refreshUI(); }
+function go(i){ if(!S) return; vStop(); vFail=0; capIdx=0; lastIdx=-1; cur=clamp(i,0,S.steps.length-1); lt=0; holdT=0; playing=true; setPulse(false); refreshUI(); }
 function next(){ if(!S) return; if(cur<S.steps.length-1) go(cur+1); else { lt=S.steps[cur].dur; playing=false; refreshUI(); } }
 function openStory(id){
   $('home').classList.add('hide'); sid=id; S=null; $('dots').innerHTML=''; $('stepTitle').textContent=UI[LANG].loading;
