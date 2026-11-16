@@ -36,13 +36,13 @@ const SD=__SD__;
 CAPREC=[]; { const R0=renderer.render; renderer.render=function(){}; try{ for(let t=0;t<=DURATION+1e-6;t+=0.1) renderAt(t); } finally { renderer.render=R0; } }
 const CAPS=[]; for(const c of CAPREC){ if(!CAPS.some(x=>Math.abs(x[0]-c[0])<1e-6)) CAPS.push(c); } CAPREC=null; CAPS.sort((p,q)=>p[0]-q[0]);
 function warp(A,B){
-  const starts=CAPS.map(c=>c[0]).filter(a=>a>A+0.05&&a<B-0.5); const pts=[A,...starts,B]; const segs=[]; let loc=0;
+  const starts=CAPS.map(c=>c[0]).filter(a=>a>A+0.05&&a<B-0.5); const pts=[A,...starts,B]; const segs=[], vc=[]; let loc=0, lastC=null;
   for(let k=0;k<pts.length-1;k++){ const g0=pts[k], g1=pts[k+1]; let c=null; for(const x of CAPS){ if(x[0]<=g0+0.06&&x[1]>g0+0.06) c=x; }
-    const need=c?1.8+Math.max(c[2].length,c[3].length)/15:0; const len=Math.max(g1-g0,need); segs.push([g0,g1,loc,loc+len]); loc+=len; }
-  return {dur:loc, map(l){ for(const s of segs){ if(l<=s[3]) return s[0]+(s[1]-s[0])*clamp((l-s[2])/(s[3]-s[2]),0,1); } return B; }};
+    const need=c?1.8+Math.max(c[2].length,c[3].length)/15:0; const len=Math.max(g1-g0,need); if(c&&c!==lastC){ vc.push([loc,{fr:c[2],en:c[3]}]); lastC=c; } segs.push([g0,g1,loc,loc+len]); loc+=len; }
+  return {dur:loc, caps:vc, map(l){ for(const s of segs){ if(l<=s[3]) return s[0]+(s[1]-s[0])*clamp((l-s[2])/(s[3]-s[2]),0,1); } return B; }};
 }
 const WP=SD.map(s=>warp(s.a,s.b));
-return { steps:SD.map((s,i)=>({title:s.title,dur:WP[i].dur})), setSize:setRenderSize,
+return { steps:SD.map((s,i)=>({title:s.title,dur:WP[i].dur,caps:WP[i].caps})), setSize:setRenderSize,
   draw(i,l,g,lang,nocap){ LANG=lang; if(nocap) CAPREC=[]; renderAt(WP[i].map(l)); CAPREC=null; } __PORTRAIT__ };
 """
 
@@ -50,7 +50,7 @@ STEP_EPI = r"""
 function drawStep(i,l,g,nocap){ ctx.setTransform(SCL,0,0,SCL,0,0); ctx.clearRect(0,0,LW,LH); STEP_FN[i](l,g); if(nocap) return;
   const st=STEPS[i]; let capTxt=null, capStart=0; for(const [t0,o] of st.caps){ if(l>=t0){ capTxt=L(o); capStart=t0; } }
   captionBox(capTxt,smooth(seg(l,capStart,capStart+0.4))); veil(1-smooth(l/0.35)); }
-return { steps:STEPS.map(s=>({title:s.title,dur:s.dur})), setSize:setRenderSize,
+return { steps:STEPS.map(s=>({title:s.title,dur:s.dur,caps:s.caps})), setSize:setRenderSize,
   draw(i,l,g,lang,nocap){ LANG=lang; drawStep(i,l,g,nocap); } __PORTRAIT__ };
 """
 
