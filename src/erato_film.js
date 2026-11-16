@@ -339,7 +339,7 @@ function caption(t,a,b,fr,en){
   const al=smooth(seg(t,a,a+0.35))*(1-smooth(seg(t,b-0.3,b))); if(al<=0.003) return;
   capBox(L2(fr,en),al);
 }
-function capBox(s,al){
+function capBox(s,al){ if(window.SUBS===false) return;
   ctx.save(); ctx.font=`600 46px ${FF}`; const words=s.split(' '), lines=[]; let cur='';
   for(const w of words){ const tt=cur?cur+' '+w:w; if(ctx.measureText(tt).width>1480&&cur){ lines.push(cur); cur=w; } else cur=tt; } if(cur) lines.push(cur); ctx.restore();
   const lh=58, h=lines.length*lh+40, y0=1046-h;

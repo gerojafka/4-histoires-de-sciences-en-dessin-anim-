@@ -241,7 +241,7 @@ const gw=V(0,0,0); function gScr(lat,lon,r){ const v=gSpin.localToWorld(ll(lat,l
 /* ====================================================================== */
 /*  2D helpers                                                             */
 /* ====================================================================== */
-function captionBox(text,a){ if(a<=0.003||!text) return; capBox(text,a); }
+function captionBox(text,a){ if(window.SUBS===false) return; if(a<=0.003||!text) return; capBox(text,a); }
 function label(s,x,y,size,o){ return txt(s,x,y,size,Object.assign({stroke:'#0b0820',sw:0.14},o||{})); }
 function pill(x,y,s,a,color,size){ if(a<=0.003) return; const sz=size||34; ctx.save(); ctx.globalAlpha=a; ctx.font=`700 ${sz}px ${FF}`; const w=ctx.measureText(s).width+sz*1.4; ctx.fillStyle=color||'rgba(20,16,46,0.85)'; rrect(x-w/2,y-sz*0.9,w,sz*1.8,sz*0.65); ctx.fill(); ctx.restore(); txt(s,x,y,sz,{alpha:a,shadow:false}); }
 function line2(a,b,col,w,frac,dash){ ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; if(dash) ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(a.x,a.y); const f=frac==null?1:frac; ctx.lineTo(lerp(a.x,b.x,f),lerp(a.y,b.y,f)); ctx.stroke(); ctx.restore(); }

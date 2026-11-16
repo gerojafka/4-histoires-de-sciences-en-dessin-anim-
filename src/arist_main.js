@@ -165,7 +165,7 @@ const farMoon=mesh(sz,new T.SphereGeometry(0.5,32,20),moonMat,0,0,0,{cast:false,
 /*  2D helpers                                                             */
 /* ====================================================================== */
 function wrap(s,maxW,font){ ctx.font=font; const words=s.split(' '); const lines=[]; let cur=''; for(const w of words){ const tst=cur?cur+' '+w:w; if(ctx.measureText(tst).width>maxW&&cur){ lines.push(cur); cur=w; } else cur=tst; } if(cur) lines.push(cur); return lines; }
-function captionBox(text,a){
+function captionBox(text,a){ if(window.SUBS===false) return;
   if(a<=0.003||!text) return; const font=`600 44px ${FF}`; const lines=wrap(text,1560,font); const h=lines.length*58+44, y0=975-h;
   ctx.save(); ctx.globalAlpha=a*0.82; ctx.fillStyle='#14102e'; rrect(150,y0,1620,h,30); ctx.fill(); ctx.restore();
   lines.forEach((ln,i)=>txt(ln,960,y0+22+29+i*58,44,{alpha:a,weight:600,shadow:false}));

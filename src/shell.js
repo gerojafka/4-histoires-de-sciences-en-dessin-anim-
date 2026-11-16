@@ -47,9 +47,9 @@ const HOME={
       tl:[['c. 270 BC','<b>Aristarchus</b>: the Moon is about one third the size of the Earth.'],['c. 240 BC','<b>Eratosthenes</b>: around the Earth, about 39,400 km.'],['1669–1670','<b>Jean Picard</b>: the Earth\'s radius, about 6,372 km.'],['1676','<b>Ole Rømer</b>: light has a speed.'],['1684','<b>Isaac Newton</b>: gravity, checked using Picard\'s radius.']]}
 };
 const UI={fr:{home:'Accueil',prevShort:'Précédent',prev:'Étape précédente',next:'Suivant',replay:'Rejouer l\'étape',play:'Lecture',pause:'Pause',mode_step:'Pas à pas',mode_auto:'Continu',
-              modeTip:'Pas à pas : l\'animation attend « Suivant » à la fin de chaque étape. Continu : elle enchaîne toute seule.',speed:'Vitesse',speedTip:'Ralentir l\'animation',sound:'Musique',voice:'Voix off',step:'Étape',rot:'Tournez le téléphone pour un plus grand écran',loading:'Chargement…'},
+              modeTip:'Pas à pas : l\'animation attend « Suivant » à la fin de chaque étape. Continu : elle enchaîne toute seule.',speed:'Vitesse',speedTip:'Ralentir l\'animation',sound:'Musique',voice:'Voix off',subs:'Sous-titres',step:'Étape',rot:'Tournez le téléphone pour un plus grand écran',loading:'Chargement…'},
           en:{home:'Home',prevShort:'Previous',prev:'Previous step',next:'Next',replay:'Replay step',play:'Play',pause:'Pause',mode_step:'Step by step',mode_auto:'Continuous',
-              modeTip:'Step by step: waits for “Next” at the end of each step. Continuous: plays straight through.',speed:'Speed',speedTip:'Slow the animation down',sound:'Music',voice:'Voice-over',step:'Step',rot:'Turn your phone sideways for a bigger picture',loading:'Loading…'}};
+              modeTip:'Step by step: waits for “Next” at the end of each step. Continuous: plays straight through.',speed:'Speed',speedTip:'Slow the animation down',sound:'Music',voice:'Voice-over',subs:'Subtitles',step:'Step',rot:'Turn your phone sideways for a bigger picture',loading:'Loading…'}};
 const SV=d=>`<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${d}</svg>`;
 const ICON={home:SV('<path d="M12 3l9 8h-2.5v9h-5v-6h-3v6h-5v-9H3z"/>'), prev:SV('<path d="M6 5h2.5v14H6zM20 5v14L9.5 12z"/>'), play:SV('<path d="M7 4.5l13 7.5-13 7.5z"/>'), pause:SV('<path d="M6 4.5h4.3v15H6zM13.7 4.5H18v15h-4.3z"/>'),
   replay:SV('<path d="M12 4a8 8 0 1 1-7.4 5h2.3A6 6 0 1 0 12 6v3L7.5 5 12 1z"/>'),
@@ -57,6 +57,8 @@ const ICON={home:SV('<path d="M12 3l9 8h-2.5v9h-5v-6h-3v6h-5v-9H3z"/>'), prev:SV
   mute:SV('<path d="M3 9h4l5-4v14l-5-4H3z"/><path d="M15.5 9l5 6M20.5 9l-5 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>')};
 
 ICON.voice=SV('<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4.4 3.1-7 7-7s7 2.6 7 7z"/><path d="M16.5 7a4.5 4.5 0 0 1 0 6M19 4.5a8 8 0 0 1 0 11" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>');
+ICON.cc=SV('<rect x="2.5" y="5" width="19" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10.5 10.3a2.3 2.3 0 1 0 0 3.4M17 10.3a2.3 2.3 0 1 0 0 3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>');
+ICON.ccoff=SV('<rect x="2.5" y="5" width="19" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2" opacity=".6"/><path d="M10.5 10.3a2.3 2.3 0 1 0 0 3.4M17 10.3a2.3 2.3 0 1 0 0 3.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".6"/><path d="M4 3l17 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>');
 ICON.voiceoff=SV('<circle cx="9" cy="8" r="4"/><path d="M2 21c0-4.4 3.1-7 7-7s7 2.6 7 7z"/><path d="M4 3l17 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>');
 
 /* ---------------------------------------------------------------- home */
@@ -84,6 +86,7 @@ let sid=null, S=null, cur=0, lt=0, playing=false, mode='auto', speed=1, holdT=0,
 let actx=null; const music=()=>sid?$('mu_'+sid):null;
 /* ---------------------------------------------------------------- voice-over (browser speech synthesis; uses a Google voice when the browser offers one) */
 const SS=window.speechSynthesis, SS_OK=!!(SS&&window.SpeechSynthesisUtterance), VOICE_OK=!CAPTURE;
+let subsOn=false; try{ if(localStorage.getItem('savants_subs')==='1') subsOn=true; }catch(e){} window.SUBS=subsOn;
 let voiceOn=true; try{ if(localStorage.getItem('savants_voice')==='0') voiceOn=false; }catch(e){}
 let capIdx=0, lastIdx=-1, vBusy=false, vStarted=false, vStartBy=0, vEndBy=0, vUtt=null, vFail=0, vTok=0, vCache={fr:null,en:null};
 const VSYM={fr:[[/≈/g,' environ '],[/×/g,' fois '],[/=/g,' égale '],[/\+/g,' plus '],[/−\s?/g,' moins '],[/°/g,' degrés '],[/′/g,' minutes '],[/″/g,' secondes '],[/→/g,', '],[/½/g,' et demi']],
@@ -126,6 +129,7 @@ function vSpeaking(){ if(!vBusy) return false; const n=performance.now(); if(!vS
 const vUsable=()=>VOICE_OK&&voiceOn&&vFail<4&&$('btnSound').dataset.on!=='0';
 function vPause(){ if(vSpeaking()) capIdx=Math.max(0,lastIdx); vStop(); }
 function unlockVoice(){ if(!VOICE_OK) return; try{ VEL.onplaying=VEL.onended=VEL.onerror=VEL.onloadedmetadata=null; VEL.src=SILENT; const p=VEL.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){} if(SS_OK){ try{ const u=new SpeechSynthesisUtterance(' '); u.volume=0; SS.speak(u); }catch(e){} } }
+$('btnSub').onclick=()=>{ subsOn=!subsOn; window.SUBS=subsOn; try{ localStorage.setItem('savants_subs',subsOn?'1':'0'); }catch(e){} refreshUI(); };
 $('btnVoice').onclick=()=>{ voiceOn=!voiceOn; vFail=0; try{ localStorage.setItem('savants_voice',voiceOn?'1':'0'); }catch(e){}
   if(!voiceOn) vStop(); else { unlockVoice(); if(S){ const c=S.steps[cur].caps||[]; let k=-1; for(let i=0;i<c.length;i++) if(lt>=c[i][0]) k=i; capIdx=Math.max(0,k); } }
   const m=music(); if(m) m.volume=musicVol(); refreshUI(); };
@@ -142,7 +146,7 @@ function refreshUI(){ const u=UI[LANG];
   $('btnPlay').innerHTML=playing?ICON.pause:ICON.play; $('btnPlay').title=playing?u.pause:u.play; const last=S&&cur===S.steps.length-1; $('barL').innerHTML=SV('<path d="M15.5 4l2 2-6 6 6 6-2 2-8-8z"/>'); $('barR').innerHTML=SV('<path d="M8.5 4l-2 2 6 6-6 6 2 2 8-8z"/>'); $('barL').title=u.prev; $('barR').title=u.next; $('barL').classList.toggle('off',!S||cur===0); $('barR').classList.toggle('off',!S||last);
   $('btnMode').textContent=mode==='step'?u.mode_step:u.mode_auto; $('btnMode').title=u.modeTip;
   $('btnSpeed').textContent=`${u.speed} ${speed===1?'1':speed===0.75?(LANG==='fr'?'0,75':'0.75'):(LANG==='fr'?'0,5':'0.5')}×`; $('btnSpeed').title=u.speedTip;
-  $('btnVoice').innerHTML=voiceOn?ICON.voice:ICON.voiceoff; $('btnVoice').title=u.voice; $('btnVoice').style.display=VOICE_OK?'':'none'; $('btnSound').innerHTML=$('btnSound').dataset.on==='0'?ICON.mute:ICON.snd; $('btnSound').title=u.sound; $('rot').textContent='⟳ '+u.rot;
+  $('btnSub').innerHTML=subsOn?ICON.cc:ICON.ccoff; $('btnSub').title=u.subs; $('btnVoice').innerHTML=voiceOn?ICON.voice:ICON.voiceoff; $('btnVoice').title=u.voice; $('btnVoice').style.display=VOICE_OK?'':'none'; $('btnSound').innerHTML=$('btnSound').dataset.on==='0'?ICON.mute:ICON.snd; $('btnSound').title=u.sound; $('rot').textContent='⟳ '+u.rot;
   $('sideL').innerHTML=SV('<path d="M15.5 4l2 2-6 6 6 6-2 2-8-8z"/>'); $('sideR').innerHTML=SV('<path d="M8.5 4l-2 2 6 6-6 6 2 2 8-8z"/>');
   $('sideL').title=u.prev; $('sideR').title=u.next; $('sideL').hidden=!S||cur===0; $('sideR').hidden=!S||cur===S.steps.length-1;
   if(S){ $('stepTitle').textContent=`${u.step} ${cur+1}/${S.steps.length} · ${L(S.steps[cur].title)}`;
